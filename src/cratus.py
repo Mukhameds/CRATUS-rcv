@@ -10,111 +10,73 @@ COPIES_PER_CALL = 2
 LEVELS = 3
 
 # === Класс копии блока ===
-class BlockCopy:
-    def __init__(self, block_type, timer):
-        self.block_type = block_type
-        self.timer = timer  # время до активации
-        self.age = 0
-        self.active = False
+"""
+CRATUS-rcv Core Module
+Author: Mukhameds
+Description: This is the core skeleton of the CRATUS decentralized system.
+"""
 
-    def tick(self):
-        if self.timer > 0:
-            self.timer -= 1
-        else:
-            self.active = True
+# === Imports ===
+# Add necessary standard or external imports here in future
+# Example: import hashlib, time, uuid
 
-    def mutate_type(self, new_type):
-        self.block_type = new_type
+# === Constants ===
+CRATUS_VERSION = "0.0.1"
+GENESIS_TIME = "to be defined"
 
-# === Зона (может быть и красной, и зелёной в зависимости от уровня) ===
-class Zone:
-    def __init__(self, level):
-        self.level = level
-        self.copies = deque()
-        self.lock = threading.Lock()
+# === Core Classes ===
 
-    def add_copy(self, block_copy):
-        with self.lock:
-            if len(self.copies) < MAX_COPIES_PER_ZONE:
-                self.copies.append(block_copy)
+class CRATUSBlock:
+    """
+    Represents a single independent block in the CRATUS network.
+    Blocks do not form a chain, but exist individually in a living system.
+    """
+    def __init__(self, data, creator_id):
+        self.data = data
+        self.creator_id = creator_id
+        self.timestamp = None  # To be generated
+        self.block_id = None   # Unique identifier (to be implemented)
+        self.signatures = []   # Signatures from nodes
 
-    def tick_all(self):
-        with self.lock:
-            for copy in self.copies:
-                copy.tick()
+    def verify(self):
+        # TODO: Logic to verify block integrity
+        pass
 
-    def get_active_copies(self, block_type):
-        with self.lock:
-            return [c for c in self.copies if c.active and c.block_type == block_type]
 
-    def remove_copy(self, copy):
-        with self.lock:
-            if copy in self.copies:
-                self.copies.remove(copy)
+class CRATUSNode:
+    """
+    Represents a node in the CRATUS network.
+    Any smartphone or low-power device can act as a node.
+    """
+    def __init__(self, node_id):
+        self.node_id = node_id
+        self.storage = []
+        self.identity = None
 
-# === Маяк ===
-class Beacon:
-    def __init__(self):
-        self.signal = None
-        self.lock = threading.Lock()
+    def receive_block(self, block):
+        # TODO: Receive and process incoming block
+        pass
 
-    def flash(self, block_type):
-        with self.lock:
-            self.signal = block_type
+    def broadcast_block(self, block):
+        # TODO: Share block with other nodes
+        pass
 
-    def read(self):
-        with self.lock:
-            return self.signal
 
-    def reset(self):
-        with self.lock:
-            self.signal = None
+class CRATUSCitizen:
+    """
+    Represents a digital inhabitant of the METAVERSE.
+    Every citizen has exactly one coin and one identity.
+    """
+    def __init__(self, real_person_id):
+        self.real_person_id = real_person_id
+        self.cratuscoin = 1
+        self.digital_self = self.generate_identity()
 
-# === Инициализация ===
-zones = [Zone(level=i) for i in range(LEVELS)]
-beacon = Beacon()
+    def generate_identity(self):
+        # TODO: Generate unique digital identity
+        return "unique_id"
 
-# === Функция цикла смерти в верхнем уровне ===
-def death_and_summon():
-    while True:
-        time.sleep(5)
-        beacon.flash("A")  # Блок типа A умер в зелёной зоне
-        print("[!] Beacon flash: A")
-        time.sleep(1)
-        beacon.reset()
 
-# === Основной цикл Cratus ===
-def cratus_cycle():
-    while True:
-        for zone in zones:
-            zone.tick_all()
-
-        signal = beacon.read()
-        if signal:
-            for zone in reversed(zones):  # от глубины к поверхности
-                active = zone.get_active_copies(signal)
-                if active:
-                    selected = random.sample(active, min(COPIES_PER_CALL, len(active)))
-                    for copy in selected:
-                        print(f"[+] Copy {copy.block_type} from level {zone.level} responding to beacon")
-                        copy.active = False
-                        copy.timer = random.randint(5, 15)  # сброс таймера
-                        zones[0].add_copy(copy)  # переместили в зелёную зону верхнего уровня
-                        zone.remove_copy(copy)
-                    break
-
-        time.sleep(1)
-
-# === Инициализация системы ===
-def seed_system():
-    for i, zone in enumerate(zones):
-        for _ in range(random.randint(20, MAX_COPIES_PER_ZONE)):
-            delay = random.randint(3, 30 * (i + 1))
-            block = BlockCopy(block_type="A", timer=delay)
-            zone.add_copy(block)
-
-seed_system()
-
-# === Запуск ===
-threading.Thread(target=death_and_summon, daemon=True).start()
-cratus_cycle()
+# === Entry Point for Testing ===
+if __name__ == "__main__":
+    print("CRATUS-rcv core initialized. Version:", CRATUS_VERSION)
