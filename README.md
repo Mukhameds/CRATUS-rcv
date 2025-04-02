@@ -81,11 +81,13 @@ Code might contain errors. If you’re curious — reach out. I’ll explain eve
 
 ## 🔒 License
 
-CRATUS-rcv is in early development.  
+CRATUS-rcv 
+hw-code is in early development.  
 All rights reserved by the creator.  
 Public usage, modification or distribution is not allowed without explicit permission.
 
-CRATUS-rcv находится на ранней стадии разработки.  
+CRATUS-rcv 
+hw-code находится на ранней стадии разработки.  
 Все права защищены и принадлежат создателю.  
 Публичное использование, модификация или распространение запрещены без письменного разрешения автора.
 
