@@ -1,8 +1,11 @@
-# **CRATUS-rcv**
+# **hw-code**
 
-**CRATUS-rcv** is the core of a future METAVERSE — a system that unites crypto, social networks, and marketplaces, but without weaknesses, dependencies, or vulnerabilities.  
-This is next-generation IT.  
-The project creates a decentralized, living, and equal-access network where every user can participate — with no servers, no expensive equipment, and no intermediaries.
+**hw-code** hw-code is a new era. A breakthrough for humanity across all fields — from medicine to space, from physics to the METAVERSE.
+It offers the closest possible imitation of neural connections.
+Just take a moment to truly understand it.
+ No servers needed. No central node at all.
+Completely undetectable and invulnerable. Alive.
+I brought 0 and 1 to life.
 
 ---
 
