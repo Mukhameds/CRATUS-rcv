@@ -1,82 +1,105 @@
-# Cratus RCV v0.1 — Симуляция каскадных зон с маяком и копиями
-import time
-import threading
-import random
-from collections import deque
-
-# === Параметры системы ===
-MAX_COPIES_PER_ZONE = 50
-COPIES_PER_CALL = 2
-LEVELS = 3
-
-# === Класс копии блока ===
 """
 CRATUS-rcv Core Module
 Author: Mukhameds
 Description: This is the core skeleton of the CRATUS decentralized system.
 """
-
 # === Imports ===
-# Add necessary standard or external imports here in future
-# Example: import hashlib, time, uuid
+import pygame
+import sys
+import time
 
-# === Constants ===
-CRATUS_VERSION = "0.0.1"
-GENESIS_TIME = "to be defined"
+# Инициализация
+pygame.init()
+screen = pygame.display.set_mode((800, 600))
+pygame.display.set_caption("Ghost Logic Reflex Demo")
 
-# === Core Classes ===
+font = pygame.font.SysFont("Arial", 20)
 
-class CRATUSBlock:
-    """
-    Represents a single independent block in the CRATUS network.
-    Blocks do not form a chain, but exist individually in a living system.
-    """
-    def __init__(self, data, creator_id):
-        self.data = data
-        self.creator_id = creator_id
-        self.timestamp = None  # To be generated
-        self.block_id = None   # Unique identifier (to be implemented)
-        self.signatures = []   # Signatures from nodes
+# Цвета
+WHITE = (255, 255, 255)
+GRAY = (200, 200, 200)
+GREEN = (100, 255, 100)
+YELLOW = (255, 255, 100)
+RED = (255, 100, 100)
+BLACK = (0, 0, 0)
 
-    def verify(self):
-        # TODO: Logic to verify block integrity
-        pass
+# Блоки
+class Block:
+
+    def __init__(self, name, x, y, threshold=0):
+        self.name = name
+        self.rect = pygame.Rect(x, y, 120, 60)
+        self.color = GRAY
+        self.activated = False
+        self.signals_received = 0
+        self.threshold = threshold
+        self.targets = []
+
+    def draw(self):
+        pygame.draw.rect(screen, self.color, self.rect, border_radius=8)
+        text = font.render(self.name, True, BLACK)
+        screen.blit(text, (self.rect.x + 10, self.rect.y + 20))
+
+    def send_signal(self):
+        for target in self.targets:
+            target.receive_signal()
+
+    def receive_signal(self):
+        self.signals_received += 1
+        self.color = YELLOW
+        if self.threshold == 0 or self.signals_received >= self.threshold:
+            self.activate()
+
+    def activate(self):
+        if not self.activated:
+            self.activated = True
+            self.color = RED if self.name == "Muscle" else GREEN
+            self.send_signal()
+
+# Создаём блоки
+sensor1 = Block("Temperature", 100, 100)
+sensor2 = Block("Memory", 100, 200)
+sensor3 = Block("Instinct", 100, 300)
+muscle = Block("Muscle", 500, 200, threshold=3)
+
+# Соединения
+sensor1.targets = [muscle]
+sensor2.targets = [muscle]
+sensor3.targets = [muscle]
+
+blocks = [sensor1, sensor2, sensor3, muscle]
+
+# Основной цикл
+def run_simulation():
+    running = True
+    triggered = False
+    start_time = time.time()
+
+    while running:
+        screen.fill(WHITE)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # Автоматический запуск сигналов после 1 секунды
+        if not triggered and time.time() - start_time > 1:
+            sensor1.receive_signal()
+            sensor2.receive_signal()
+            sensor3.receive_signal()
+            triggered = True
+
+        # Рисуем блоки
+        for block in blocks:
+            block.draw()
+
+        pygame.display.flip()
+        pygame.time.delay(100)
+
+    pygame.quit()
+    sys.exit()
+
+run_simulation()
 
 
-class CRATUSNode:
-    """
-    Represents a node in the CRATUS network.
-    Any smartphone or low-power device can act as a node.
-    """
-    def __init__(self, node_id):
-        self.node_id = node_id
-        self.storage = []
-        self.identity = None
 
-    def receive_block(self, block):
-        # TODO: Receive and process incoming block
-        pass
-
-    def broadcast_block(self, block):
-        # TODO: Share block with other nodes
-        pass
-
-
-class CRATUSCitizen:
-    """
-    Represents a digital inhabitant of the METAVERSE.
-    Every citizen has exactly one coin and one identity.
-    """
-    def __init__(self, real_person_id):
-        self.real_person_id = real_person_id
-        self.cratuscoin = 1
-        self.digital_self = self.generate_identity()
-
-    def generate_identity(self):
-        # TODO: Generate unique digital identity
-        return "unique_id"
-
-
-# === Entry Point for Testing ===
-if __name__ == "__main__":
-    print("CRATUS-rcv core initialized. Version:", CRATUS_VERSION)
