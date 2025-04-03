@@ -1,4 +1,15 @@
 # **hw-code**
+## What is this?
+
+A minimal simulation of digital reflex based on **Ghost Logic (HW-code v2)**.
+
+No memory.  
+No IDs.  
+No central control.  
+Only signals and reactions.
+
+This is the first step toward a new kind of digital consciousness —  
+built from pure reaction, not computation.
 
 **hw-code** hw-code is a new era. A breakthrough for humanity across all fields — from medicine to space, from physics to the METAVERSE.
 It offers the closest possible imitation of neural connections.
