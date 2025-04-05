@@ -1,0 +1,219 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"math"
+	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const Planck = 6.626e-34
+const LightSpeed = 3e8
+const MassThreshold = 2.4e-35 // Масса, при которой нода делится
+
+type Vector struct {
+	X float64
+	Y float64
+}
+
+type Signal struct {
+	Content   string
+	Frequency float64
+	Energy    float64
+	Position  Vector
+	Direction Vector
+	Source    string
+}
+
+type Node struct {
+	ID       int
+	Port     int
+	Position Vector
+	Energy   float64
+	Mass     float64
+	Memory   map[string]float64
+	Peers    map[string]bool
+	NextPort int
+}
+
+func NewNode(port int, peers []string, pos Vector) *Node {
+	p := make(map[string]bool)
+	for _, addr := range peers {
+		if addr != "" {
+			p[addr] = true
+		}
+	}
+	return &Node{
+		ID:       port,
+		Port:     port,
+		Position: pos,
+		Energy:   0,
+		Mass:     0,
+		Memory:   make(map[string]float64),
+		Peers:    p,
+		NextPort: port + 1,
+	}
+}
+
+func (n *Node) handleSignal(w http.ResponseWriter, r *http.Request) {
+	var sig Signal
+	body, _ := ioutil.ReadAll(r.Body)
+	err := json.Unmarshal(body, &sig)
+	if err != nil {
+		http.Error(w, "Invalid signal", http.StatusBadRequest)
+		return
+	}
+
+	// Если задана частота — рассчитываем энергию
+	if sig.Frequency > 0 && sig.Energy == 0 {
+		sig.Energy = Planck * sig.Frequency
+	}
+
+	// Расстояние
+	dx := n.Position.X - sig.Position.X
+	dy := n.Position.Y - sig.Position.Y
+	r2 := dx*dx + dy*dy
+	attenuation := 1.0 / (1.0 + r2)
+	effectiveEnergy := sig.Energy * attenuation
+
+	n.processSignal(sig, effectiveEnergy)
+
+	// Рассылаем другим (ослабленная волна)
+	for peer := range n.Peers {
+		if peer != sig.Source {
+			go sendSignalToPeer(peer, sig, n.Port, n.Position)
+		}
+	}
+}
+
+func (n *Node) processSignal(sig Signal, effectiveEnergy float64) {
+	n.Memory[sig.Content] += effectiveEnergy
+	n.Energy += effectiveEnergy
+	n.Mass = n.Energy / (LightSpeed * LightSpeed)
+
+	log.Printf("[Node %d] получил '%s' (%.2e Дж) → масса: %.2e кг",
+		n.Port, sig.Content, effectiveEnergy, n.Mass)
+
+	if n.Mass >= MassThreshold {
+		n.Energy = 0
+		n.Mass = 0
+		n.spawn()
+	}
+}
+
+func (n *Node) handlePeers(w http.ResponseWriter, r *http.Request) {
+	list := []string{}
+	for k := range n.Peers {
+		list = append(list, k)
+	}
+	json.NewEncoder(w).Encode(list)
+}
+
+func (n *Node) handleAnnounce(w http.ResponseWriter, r *http.Request) {
+	data, _ := ioutil.ReadAll(r.Body)
+	addr := string(data)
+	if addr != fmt.Sprintf("127.0.0.1:%d", n.Port) {
+		n.Peers[addr] = true
+		log.Printf("[Node %d] принял новый узел: %s", n.Port, addr)
+	}
+}
+
+func (n *Node) discover() {
+	for peer := range n.Peers {
+		resp, err := http.Get("http://" + peer + "/peers")
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		var discovered []string
+		json.NewDecoder(resp.Body).Decode(&discovered)
+		for _, d := range discovered {
+			n.Peers[d] = true
+		}
+		go announceToPeer(peer, n.Port)
+	}
+}
+
+func (n *Node) spawn() {
+	childPort := n.NextPort
+	log.Printf("[Node %d] делится → Node %d", n.Port, childPort)
+
+	newPos := Vector{X: n.Position.X + 1, Y: n.Position.Y + 1} // упрощённое перемещение
+
+	args := []string{
+		"run", "ghost_field_v2.go",
+		strconv.Itoa(childPort),
+		strconv.FormatFloat(newPos.X, 'f', 1, 64),
+		strconv.FormatFloat(newPos.Y, 'f', 1, 64),
+		strings.Join(n.peerList(), ","),
+	}
+	cmd := exec.Command("go", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Start()
+	if err != nil {
+		log.Printf("[Node %d] ошибка запуска потомка: %v", n.Port, err)
+		return
+	}
+	n.NextPort++
+}
+
+func (n *Node) peerList() []string {
+	keys := []string{}
+	for k := range n.Peers {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func sendSignalToPeer(peer string, sig Signal, fromPort int, fromPos Vector) {
+	sig.Source = fmt.Sprintf("127.0.0.1:%d", fromPort)
+	sig.Position = fromPos
+	data, _ := json.Marshal(sig)
+	_, err := http.Post("http://"+peer+"/signal", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		log.Printf("[SEND] ошибка сигнала к %s: %v", peer, err)
+	}
+}
+
+func announceToPeer(peer string, fromPort int) {
+	body := []byte(fmt.Sprintf("127.0.0.1:%d", fromPort))
+	http.Post("http://"+peer+"/announce", "text/plain", bytes.NewBuffer(body))
+}
+
+func main() {
+	if len(os.Args) < 4 {
+		fmt.Println("Использование: go run ghost_field_v2.go <PORT> <X> <Y> [peer1,peer2,...]")
+		return
+	}
+	port, _ := strconv.Atoi(os.Args[1])
+	x, _ := strconv.ParseFloat(os.Args[2], 64)
+	y, _ := strconv.ParseFloat(os.Args[3], 64)
+	var peers []string
+	if len(os.Args) >= 5 {
+		peers = strings.Split(os.Args[4], ",")
+	}
+
+	node := NewNode(port, peers, Vector{X: x, Y: y})
+
+	http.HandleFunc("/signal", node.handleSignal)
+	http.HandleFunc("/peers", node.handlePeers)
+	http.HandleFunc("/announce", node.handleAnnounce)
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		log.Printf("[Node %d] готов. Соседи: %v", node.Port, node.peerList())
+		node.discover()
+	}()
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
+}
